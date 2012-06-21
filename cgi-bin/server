@@ -29,9 +29,6 @@ def unlockjob(job):
 import cgitb
 cgitb.enable()
 
-# And successful cgi output
-print "Content-type: text/plain"
-print
 
 worker=os.environ['REMOTE_ADDR']
 query=os.environ['QUERY_STRING']
@@ -55,19 +52,23 @@ if query.startswith('get'):
         if offer == 'none':
             if line.strip().endswith('QUEUED'):
                 offer = line
-                line = line.replace('QUEUED', ("RUNNING:%s:%s" % worker,
-                time.time()))
+                line = line.replace('QUEUED', ("RUNNING:%s:%s" % (worker, time.time())))
         outfile.write(line)
 
     if offer == 'none':
+        print "Content-type: text/plain"
+        print
         print 'sleep:120'
+        os.remove((job + '.next'))
         unlockjob(job)
         sys.exit(0)
 
+    print "Content-type: text/plain"
+    print
     print (job + ':' + offer.split()[0])
     os.rename((job + '.next'), (job + '.work'))
 
-    for line in open((job + 'hashes')):
+    for line in open((job + '.hashes')):
         print line.strip()
 
 elif query.startswith('res'):
@@ -90,10 +91,14 @@ elif query.startswith('res'):
             else:
                 line = line.replace('RUNNING', ("DONE:%s" % (time.time())))
         outfile.write(line)
+    print "Content-type: text/plain"
+    print
     print "thanks"
     os.rename((job + '.next'), (job + '.work'))
 
 else:
+    print "Content-type: text/plain"
+    print
     print "bad query"
 
 unlockjob(job)

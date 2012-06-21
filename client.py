@@ -9,10 +9,10 @@ import shutil
 import os
 
 
-url=sys.argv[1]
+url=(sys.argv[1] + '?')
 
 while True:
-    getwork urllib.urlopen((url + 'getwork'), proxies={})
+    getwork= urllib.urlopen((url + 'getwork'), proxies={})
     worku = getwork.readline().strip()
     if worku.startswith('sleep'):
         (junk, stime)=worku.strip().rsplit(':',1)
@@ -25,7 +25,7 @@ while True:
     hashes=getwork.readlines()
     getwork.close()
 
-# Output the hashes
+# Make a temp hashfile
     hashfile = tempfile.NamedTemporaryFile()
     for line in hashes:
         hashfile.write(line)
@@ -33,7 +33,7 @@ while True:
 
 # Do the work
     mycmd = ('./plugin ' + mywork + ' |./john --stdin ' + hashfile.name)
-    doing = subprocess.Popen(mywork, shell=True)
+    doing = subprocess.Popen(mycmd, shell=True)
     res = doing.wait()
     if not res == 0:
         print "failed code %s" % res
