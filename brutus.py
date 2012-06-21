@@ -52,9 +52,9 @@ def dump_nums(maxlen, rangesize):
     stretch = 1
     while ( True ):
         if i2p((countr + rangesize), maxlen) == pass_max:
-            print "%d:%d:%d:" % (stretch, countr, p2i(( ALPHABET[len(ALPHABET) - 1] * maxlen)))
+            print "%d:%d:%d QUEUED" % (maxlen, countr, p2i(( ALPHABET[len(ALPHABET) - 1] * maxlen)))
             break
-        print "%d:%d:%d:" % (stretch, countr, countr + rangesize)
+        print "%d:%d:%d QUEUED" % (maxlen, countr, countr + rangesize)
         countr = countr + rangesize
         stretch = stretch + 1
 
@@ -63,7 +63,7 @@ iam = os.path.basename(sys.argv[0])
 
 pass_max = ( ALPHABET[len(ALPHABET)-1] * 8 )
 if iam == 'i2p':
-    print i2p(int(sys.argv[2]), int(sys.argv[1]))
+    print i2p(int(sys.argv[1]), int(sys.argv[2]))
 elif iam == 'p2i':
     print p2i(sys.argv[1])
 elif iam == 'pipr':
@@ -75,4 +75,4 @@ elif iam == 'pipr':
 elif iam == 'dump_ranges':
     dump_ranges(8, 2136000000)
 else:
-    dump_nums(8, 2136000000)
+    dump_nums(int(sys.argv[2]), int(sys.argv[1]))

@@ -32,7 +32,9 @@ while True:
     hashfile.flush()
 
 # Do the work
+    mywork = ' '.join(mywork.split(':'))
     mycmd = ('./plugin ' + mywork + ' |./john --stdin ' + hashfile.name)
+    print "doing %s" % mycmd
     doing = subprocess.Popen(mycmd, shell=True)
     res = doing.wait()
     if not res == 0:
