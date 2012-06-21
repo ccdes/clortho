@@ -1,5 +1,14 @@
 #!/bin/bash
-for count in $(seq 1 8); do for u in $(seq 1 $count); do echo user${u}:$(openssl passwd '^^^^^^^^'):0:0:user:/:/bin/bash; done > test${count}; done
+
+maxsalts=8
+
+for u in $(seq 1 $maxsalts); do echo user${u}:$(openssl passwd '^^^^^^^^'):0:0:user:/:/bin/bash; done > test${maxsalts}
+
+
+for i in $(seq 1 $(( $maxsalts -1 )) )
+do
+	head -n $i test${maxsalts} > test${i}
+done
 
 for count in $(seq 1 8)
 do
@@ -12,4 +21,5 @@ echo -n "1 salts, large: "
 echo -n "8 salts, large: "
 /usr/bin/time -f %E ./plugin 8 10000000 69999999 |./john --stdin test8 >/dev/null 2>/dev/null
 
+rm test[1-8]
 
