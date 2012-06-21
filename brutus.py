@@ -5,7 +5,7 @@ import os
 
 maxlen = 8
 #ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ *@#!$%^"
-ALPHABET = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*@#!$%^"
+ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*@#!$%^"
 
 # Convert a number into a password
 def i2p(num, alphabet=ALPHABET):
@@ -34,7 +34,7 @@ def p2i(string, alphabet=ALPHABET):
 
 # Print ranges in (startplain) - (endplain) format
 def dump_ranges(minlen, maxlen, rangesize):
-    pw1 = ( ALPHABET[1] * minlen )
+    pw1 = ( ALPHABET[0] * minlen )
     countr = p2i(pw1)
     while ( True ):
         countr = countr + rangesize
@@ -46,7 +46,7 @@ def dump_ranges(minlen, maxlen, rangesize):
         pw1 = pw2
 
 def dump_nums(minlen, maxlen, rangesize):
-    pw1 = ( ALPHABET[1] * minlen )
+    pw1 = ( ALPHABET[0] * minlen )
     countr = p2i(pw1)
     stretch = 1
     while ( True ):
