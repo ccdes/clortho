@@ -1,0 +1,15 @@
+#!/bin/bash
+for count in $(seq 1 8); do for u in $(seq 1 $count); do echo user${u}:$(openssl passwd '^^^^^^^^'):0:0:user:/:/bin/bash; done > test${count}; done
+
+for count in $(seq 1 8)
+do
+	echo -n "$count salts: "
+	/usr/bin/time -f %E ./plugin 8 1000000 6999999 |./john --stdin test${count} >/dev/null 2>/dev/null
+done
+
+echo -n "1 salts, large: "
+/usr/bin/time -f %E ./plugin 8 10000000 69999999 |./john --stdin test1 >/dev/null 2>/dev/null
+echo -n "8 salts, large: "
+/usr/bin/time -f %E ./plugin 8 10000000 69999999 |./john --stdin test8 >/dev/null 2>/dev/null
+
+
