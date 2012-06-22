@@ -1,1 +1,129 @@
-Brutus.
+
+
+Brutus - because life's too short to spend time planning.  Just do it.
+
+
+Brutus is a tool to assist with exhaustive keyspace search using multiple
+systems.  It divides up the keyspace and distributes work to a number of
+JtR worker processes which may change during the lifetime of the attempt.
+
+
+
+BACKGROUND
+
+Brute-force password cracking has been often used as a last-resort, as the
+limited capacity of even today's (2012) computers lead to half-word lengths
+measured in years.
+
+However, cracking passwords is an embarrassingly parallel problem, and several
+different strategies have been taken to divide the work.  The most common 
+approach scales for multiple cores in a single machine (OpenMP). 
+However, it does not perform as well as simple divide-and-conquer.
+
+MPI scales well across a homogeneous cluster of machines, but does not
+allow for compute units to join and leave the cluster without restart.
+
+Markov mode has been used with some success, however it does not cover the
+entire keyspace without significant overhead. 
+
+The 'Incremental' mode of John the Ripper (JtR) is based on the premise that
+exhaustive cracking never terminates on real-world charset/lengths,
+and thus uses frequency mappings to prioritize combinations.  It does work
+well with mpi for homogeneous clusters, but does not lend itself to creating
+blocks of work (more later).
+
+
+PURPOSE
+
+The purpose of Brutus is to meet two goals:
+
+* Exhaust the keyspace for a given length and plaintext alphabet
+* Use computing efficiently towards reaching the first goal
+
+
+The second goal implies a few qualities:
+
+* Over a reasonable time period, a 35000Kc/s system should contribute
+  the work equivalent to ten 3500Kc/s systems.  This is achieved by 
+  using a single-threaded JtR process for each core.
+
+* Compute power should be usable whether available continuously for
+  the entire run, or for a shorter period of time.
+
+NON-GOALS
+
+Non-goals include optimizing individual passwords:  modifying JtR  incremental
+mode to *skip* encryption would still take ~2000 DAYS to generate and discard 
+the entire keyspace, as it is effectively single threaded, and the algorithm
+increments well but does not have the memoryless properties of Markov.
+
+A previous effort modified JtR into two parts, a workload generator which
+determined stop/start points for a given work unit, and the Incremental
+cracker which would start and stop at these points.  However the generator
+(effectively incremental mode without cracker.c functions) was only able
+to cover ~1.7E13 passwords in a 24 hour period - approx 0.27% of the keyspace.
+
+Further investigation in speeding incremental block generation is very
+interesting. For now, Brutus trades the intelligence of trigraph frequencies
+for fast work generation.
+
+HOW IT WORKS: WORK UNIT GENERATION
+
+On the server side, the workload (hashes) are gathered and the script
+'brutus.py' segments the keyspace into chunks based on a target number of
+(single hash) combinations per job.  For example, for a 2,136,000,000c 
+target on the 8 character password space:
+
+./brutus.py 2136000000 8 > newjob.work
+
+It is possible to hit multiple lengths in the same file by appending. Given
+the workunit above, lengths 1 through 5 become single work units, but the
+longer lengths use 51, 3,487, and 240,543 units.
+
+Remember that the number of salts your hash file contains will multiply
+the length the work unit takes to execute.
+
+It is also possible to alter/expand the alphabet (in both brutus and plugin
+at the same time!)
+
+CLIENT / SERVER
+
+The cgi-bin/server provides work units to clients.  It is possible to
+give a particular IP address different work than the others, but the
+default files used are default.hashes and default.work.  If there is no
+work available, clients are told to sleep for two minute and check back.
+
+The client.py creates one worker thread per system (using POSIX sysconf,
+this likely won't work on windows) and each worker will connect to the
+specified server, get a work unit, and report results back.  If a 
+password is found, it is removed from the hashes to speed up future 
+work units. 
+
+The worker threads use a program (plugin) to provide combinations to
+JtR --stdin mode.  This does add overhead; the plugin alone generates
+work more quickly than stripped Incremental mentioned before, but it 
+would be even more efficient to generate work within JtR.
+
+A sample work unit (test.*) is provided, which can be used to quickly
+verify configuration before providing real work to your clients.  It
+contains a small amount of tiny work units, and both hashes which can
+be found in the work units.  
+
+
+
+POTENTIAL ENHANCEMENTS / MAYBE-TODO
+
+* general stability / exception handling
+
+* client kill / removal from server command
+
+* client self-update
+
+* automatic purging of stale RUNNING jobs
+
+* plugin could be integrated into JtR.  This may reduce the 12% overhead 
+observed.
+
+* dynamic work unit sizing, based on client self-benchmarking
+
+
