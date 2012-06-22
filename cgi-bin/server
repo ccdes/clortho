@@ -6,6 +6,7 @@ import os
 import time
 import errno
 import sys
+import urllib
 
 def lockjob(job):
     start_time = time.time()
@@ -78,11 +79,24 @@ elif query.startswith('res'):
     lockjob(job)
     found = None
     if not result.startswith('notfound'):
-        outfile=open((job + '.found'), 'a')
+        query=urllib.unquote(query)
+        outfile=open((job + '.foundlog'), 'a')
         outfile.write(query)
         outfile.write('\n')
         outfile.close()
+        (foundhash, foundplain)=query.split('=')[1].split(':')
         found='yes'
+        outfile=open((job + '.nhashes'), 'w')
+        solvedfile=open((job + '.solved'), 'a')
+        for line in open((job + '.hashes')):
+            if foundhash in line:
+                solvedfile.write(line.replace(foundhash, foundplain))
+            else:
+                outfile.write(line)
+        outfile.close()
+        solvedfile.close()
+        os.rename((job+".nhashes"),(job+'.hashes'))
+
     outfile=open((job + '.next'), 'w')
     for line in open((job + '.work')):
         if line.startswith(work):
