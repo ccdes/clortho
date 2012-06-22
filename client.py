@@ -74,7 +74,7 @@ class workThread(threading.Thread):
         work_loop(self.tname)
         
 
-cpucount = 4
+cpucount = int(os.sysconf('SC_NPROCESSORS_ONLN'))
 
 i=0
 threads=[]
