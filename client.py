@@ -7,6 +7,7 @@ import tempfile
 import subprocess
 import shutil
 import os
+import threading
 
 
 url=(sys.argv[1] + '?')
@@ -62,6 +63,30 @@ def work_loop(loopname):
         goodbye.close()
         hashfile.close()
 
-work_loop('main')
-#notreached
+
+class workThread(threading.Thread):
+    def __init__(self, threadID, tname):
+        self.threadID=threadID
+        self.tname=tname
+        threading.Thread.__init__(self)
+    def run(self):
+        print "starting thread %s" % self.tname
+        work_loop(self.tname)
+        
+
+cpucount = 4
+
+i=0
+threads=[]
+while i < cpucount:
+    thread=workThread(i, ('thread'+str(i)))
+    thread.start()
+    threads.append(thread)
+    i+=1
+    time.sleep(5)
+
+
+for t in threads:
+    t.join()
+
 sys.exit(0)
