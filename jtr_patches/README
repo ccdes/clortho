@@ -14,3 +14,85 @@ minutes per unit generation time of Clortho.patch, this was not feasable for
 the larger lengths, as a very small number of workers could starve out
 the generator.
 
+Example clortho run (with a very small unit size on All4):
+
+$ grep unit john.log
+0:00:00:00 work unit 0: START
+0:00:00:00 work unit 1: 1590 3 0 67 | 67 60 61 0 0 0 0 0 
+0:00:00:01 work unit 2: 1689 3 2 80 | 48 75 80 0 0 0 0 0 
+0:00:00:01 work unit 3: 1751 3 1 89 | 57 89 6 0 0 0 0 0 
+0:00:00:01 work unit 4: EOF
+
+An example john.rec which will work from START and stop at the unit 1
+marker when run with zuul.
+
+REC3
+4
+--incremental=All4
+../pass
+--format=des
+2
+0
+000daf00
+00000000
+0
+1
+a6d3ae70
+0
+0
+8
+0
+0
+0
+0
+0
+0
+0
+0
+3
+0
+67
+67
+60
+61
+0
+0
+0
+0
+0
+
+
+Do the next unit( start at unit 1 work until unit 2):
+REC3
+4
+--incremental=All4
+../pass
+--format=des
+2
+0
+000daf00
+00000000
+0
+1
+a6d3ae70
+1590
+0
+8
+67
+60
+61
+0
+0
+0
+0
+0
+3
+2
+80
+48
+75
+80
+0
+0
+0
+
