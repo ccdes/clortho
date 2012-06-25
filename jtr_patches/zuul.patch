@@ -1,0 +1,170 @@
+diff --git a/src/inc.c b/src/inc.c
+index 1d46130..7a44332 100644
+--- a/src/inc.c
++++ b/src/inc.c
+@@ -18,6 +18,7 @@
+ #include "loader.h"
+ #include "logger.h"
+ #include "status.h"
++#include "options.h"
+ #include "recovery.h"
+ #include "config.h"
+ #include "charset.h"
+@@ -27,6 +28,7 @@
+ extern struct fmt_main fmt_LM;
+ extern struct fmt_main fmt_NETLM;
+ extern struct fmt_main fmt_NETHALFLM;
++extern int restore_stop;
+ 
+ #ifdef HAVE_MPI
+ #include "john-mpi.h"
+@@ -64,6 +66,29 @@ static int rec_numbers[CHARSET_LENGTH];
+ static int entry;
+ static int numbers[CHARSET_LENGTH];
+ 
++/* This is the stop data */
++static unsigned int stop_len, stop_fixed, stop_count;
++static int stop_num[CHARSET_LENGTH];
++
++static int are_we_there_yet(int length, int fixed, int count)
++{
++	int pos;
++
++	if ((stop_count == count ) &&
++		(stop_fixed == fixed ) &&
++		(stop_len == length ) )
++	{
++		pos = length;
++		while (--pos > 0) {
++			if (numbers[pos] != stop_num[pos])
++				return 0;
++		log_event("we're there kids!");
++		return 1;
++		}
++	}
++	return 0;
++}
++
+ static void save_state(FILE *file)
+ {
+ 	int pos;
+@@ -91,8 +116,27 @@ static int restore_state(FILE *file)
+ 		if (fscanf(file, "%d\n", &rec_numbers[pos]) != 1) return 1;
+ 		if ((unsigned int)rec_numbers[pos] >= CHARSET_SIZE) return 1;
+ 	}
++	log_event("starting %d  | %d %d %d %d %d %d %d %d\n",
++		rec_entry, 
++		rec_numbers[0], rec_numbers[1], rec_numbers[2], rec_numbers[3],
++		rec_numbers[4], rec_numbers[5], rec_numbers[6], rec_numbers[7]);
+ 
+ 	cand = 0; // progress reporting don't work after resume so we mute it
++
++	if (restore_stop) {
++		if (fscanf(file, "%d\n%d\n%d\n", &stop_len, &stop_fixed, &stop_count) != 3)
++			return 1;
++		for (pos = 0; pos < length; pos++) {
++			if (fscanf(file, "%d\n", &stop_num[pos]) != 1) return 1;
++			if ((unsigned int)stop_num[pos] >= CHARSET_SIZE) return 1;
++		}
++		log_event("Will stop at %d %d %d | %d %d %d %d %d %d %d %d\n",
++			stop_len, stop_fixed, stop_count,
++			stop_num[0], stop_num[1], stop_num[2], stop_num[3],
++			stop_num[4], stop_num[5], stop_num[6], stop_num[7]);
++
++
++	}
+ 	return 0;
+ }
+ 
+@@ -347,6 +391,12 @@ update_last:
+ 	if (!f_filter || ext_filter_body(key_i, key = key_e))
+ 		if (crk_process_key(key))
+ 			return 1;
++	if (restore_stop)
++		if (are_we_there_yet(length, fixed, count))
++			return 1;
++	fprintf(stderr, "%s\n", key);
++	
++		
+ 
+ 	if (rec_compat) goto compat;
+ 
+@@ -408,6 +458,7 @@ void do_incremental_crack(struct db_main *db, char *mode)
+ 	int last_length, last_count;
+ 	int pos;
+ 
++
+ 	if (!mode) {
+ 		if (db->format == &fmt_LM)
+ 			mode = "LanMan";
+diff --git a/src/john.c b/src/john.c
+index 7323211..fe77d94 100644
+--- a/src/john.c
++++ b/src/john.c
+@@ -108,6 +108,7 @@ extern int zip2john(int argc, char **argv);
+ static struct db_main database;
+ static struct fmt_main dummy_format;
+ 
++
+ static int exit_status = 0;
+ 
+ static void john_register_one(struct fmt_main *format)
+diff --git a/src/options.c b/src/options.c
+index 0c6a4e0..4612b49 100644
+--- a/src/options.c
++++ b/src/options.c
+@@ -42,7 +42,7 @@
+ 
+ struct options_main options;
+ static char *field_sep_char_string;
+-
++int restore_stop;
+ #if defined (__MINGW32__) || defined (_MSC_VER)
+ // Later versions of MSVC can handle %lld but some older
+ // ones can only handle %I64d.  Easiest to simply use
+@@ -122,6 +122,7 @@ static struct opt_entry opt_list[] = {
+ 	{"config", FLG_CONFIG_CLI, FLG_NONE, 0, OPT_REQ_PARAM,
+ 		OPT_FMT_STR_ALLOC, &options.config},
+ 	{"nolog", FLG_NOLOG, FLG_NOLOG},
++	{"stop", FLG_STOP, FLG_STOP},
+ 	{"crack-status", FLG_CRKSTAT, FLG_CRKSTAT},
+ 	{"mkpc", FLG_NONE, FLG_NONE, 0, OPT_REQ_PARAM,
+ 		"%u", &options.mkpc},
+@@ -158,6 +159,7 @@ static struct opt_entry opt_list[] = {
+ "--external=MODE           external mode or word filter\n" \
+ "--stdout[=LENGTH]         just output candidate passwords [cut at LENGTH]\n" \
+ "--restore[=NAME]          restore an interrupted session [called NAME]\n" \
++"--stop                    honor stop data in the --restore file\n" \
+ "--session=NAME            give a new session the NAME\n" \
+ "--status[=NAME]           print status of a session [called NAME]\n" \
+ "--make-charset=FILE       make a charset file. It will be overwritten\n" \
+@@ -266,6 +268,11 @@ void opt_init(char *name, int argc, char **argv)
+ 		rec_name = options.session;
+ 		rec_name_completed = 0;
+ 	}
++	if (options.flags & FLG_STOP)  {
++		restore_stop = 1;
++		fprintf(stderr, "loading the flag\n");
++	}
++	
+ 
+ 	if (options.flags & FLG_RESTORE_CHK) {
+ 		rec_restore_args(1);
+diff --git a/src/options.h b/src/options.h
+index 44959ae..6825f15 100644
+--- a/src/options.h
++++ b/src/options.h
+@@ -94,6 +94,8 @@
+ #define FLG_CONFIG_CLI      0x10000000
+ /* Turn off logging */
+ #define FLG_NOLOG			0x20000000
++/* Use stop data in restore file */
++#define FLG_STOP			0x80000000
+ /* Markov mode enabled */
+ #define FLG_MKV_CHK			0x40000000
+ #define FLG_MKV_SET			(FLG_MKV_CHK | FLG_CRACKING_SET)
+@@ -198,3 +200,4 @@ extern struct options_main options;
+ extern void opt_init(char *name, int argc, char **argv);
+ 
+ #endif
++extern int restore_stop;

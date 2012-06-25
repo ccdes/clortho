@@ -1,0 +1,66 @@
+diff --git a/src/inc.c b/src/inc.c
+index 1d46130..30bad5a 100644
+--- a/src/inc.c
++++ b/src/inc.c
+@@ -34,6 +34,13 @@ extern struct fmt_main fmt_NETHALFLM;
+ #include <math.h>
+ 
+ static unsigned long long try, cand;
++// add
++static unsigned long long rcountr, runitc = 0;
++// This is about 10 min of work for a 36000k c/s system
++//static unsigned long long runit = 21600000000;
++  static unsigned long long runit = 2160000000;
++
++
+ 
+ static int get_progress(int *hundth_perc)
+ {
+@@ -345,9 +352,17 @@ update_last:
+ 	key = key_i;
+ 	try++;
+ 	if (!f_filter || ext_filter_body(key_i, key = key_e))
+-		if (crk_process_key(key))
+-			return 1;
+-
++	if (rcountr++ >= runit) {
++		        rcountr=0;
++			log_event("work unit %llu: %u %d %d %d | %u %u %u %u %u %u %u %u ", 
++			++runitc,
++			entry, length, fixed, count,
++			numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
++			numbers[5], numbers[6], numbers[7]);
++        }
++//		if (crk_process_key(key))
++//			return 1;
++//	log_event("key=%s, size = %d",key,rcountr++);
+ 	if (rec_compat) goto compat;
+ 
+ 	pos = length;
+@@ -614,9 +629,10 @@ void do_incremental_crack(struct db_main *db, char *mode)
+ 	memset(rec_numbers, 0, sizeof(rec_numbers));
+ 
+ 	status_init(get_progress, 0);
++	log_event("work unit %llu: START", runitc);
+ 
+-	rec_restore_mode(restore_state);
+-	rec_init(db, save_state);
++//	rec_restore_mode(restore_state);
++//	rec_init(db, save_state);
+ 
+ 	ptr = header->order + (entry = rec_entry) * 3;
+ 	memcpy(numbers, rec_numbers, sizeof(numbers));
+@@ -668,10 +684,11 @@ void do_incremental_crack(struct db_main *db, char *mode)
+ 		log_event("- Trying length %d, fixed @%d, character count %d",
+ 			length + 1, fixed + 1, count + 1);
+ 
+-		if (inc_key_loop(length, fixed, count, char1, char2, chars))
+-			break;
++	inc_key_loop(length, fixed, count, char1, char2, chars);
+ 	}
+ 
++	log_event("work unit %llu: EOF", ++runitc);
++
+ 	if (!event_abort)
+ 		try = cand = 100; // For reporting DONE after a no-ETA run
+ 
