@@ -1,0 +1,16 @@
+These two patches are the original incremental mode work against JtR.
+
+Clortho - modifies JtR Incremental to generate work units and not actually
+crypt the keys.  Unfortunately generating the work takes minutes per unit,
+and it's single-threaded.  Making this range generation code faster would
+greatly help improve the project.  This was the original 'Clortho'
+
+Zuul - modifications to JtR which allow the --stop option, which will
+look for additional data in the .rec file to determine when to stop cracking.
+
+The patches were tested (hand-crafting the .rec files) against the 
+Incremental:All4 and correctness was verified.  However due to the 2+
+minutes per unit generation time of Clortho.patch, this was not feasable for
+the larger lengths, as a very small number of workers could starve out
+the generator.
+
