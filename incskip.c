@@ -9,6 +9,7 @@
 // Test code to demonstrate traversal of the incremental search space in John the Ripper.
 //
 // Author: taviso@...xchg8b.com, Jun 2012.
+// Modified by cc@nycheads.com
 
 struct header {
     uint32_t    version;
@@ -25,7 +26,7 @@ struct header {
     } order[3420];
 } __attribute__((packed));
 
-static const uint32_t kMinLength     = 8;
+static const uint32_t kMinLength     = 1;
 static const uint32_t kMaxLength     = 8;
 static const uint32_t kCharsetLen    = 95;
 static const uint32_t kTotalShards   = 1 << 21;
@@ -81,8 +82,8 @@ static uint64_t calculate_maximum_attempts(uint32_t length,
                                            uint32_t fixed,
                                            uint32_t count)
 {
-    int64_t result;
-    int32_t pos;
+    uint64_t result;
+    uint32_t pos;
 
     // A table of coefficients required to compensate for fixed characters in
     // JtR character files.
@@ -104,6 +105,7 @@ static uint64_t calculate_maximum_attempts(uint32_t length,
     for (pos = 0; pos < kMaxLength; pos++) {
         result += kOrderCoefficients[fixed][pos] * pow(count + 1, length - pos);
     }
+
 
     return result;
 }
@@ -203,6 +205,8 @@ int main(int argc, char **argv)
 {
     struct header header;   // Header of CHR file.
     uint64_t crypts;        // Total number of crypt() operations expected.
+    uint64_t dunn;        // crypt()s accounted for
+    uint64_t myunit = 21600000000ULL;        // units of crypt() for work
     uint64_t estimated;     // Estimated number of crypts() required to complete this order entry.
     uint32_t entry;         // Current order index (a table stored in the CHR files).
     uint64_t result;
@@ -231,7 +235,7 @@ int main(int argc, char **argv)
             header.offsets[3],
             header.offsets[4]);
 
-    for (entry = 0, crypts = 0;
+    for (entry = 0, crypts = 0, dunn = myunit;
          entry < (sizeof header.order / sizeof header.order[0]);
          entry++) {
 
@@ -251,13 +255,26 @@ int main(int argc, char **argv)
         estimated = calculate_maximum_attempts(header.order[entry].length,
                                                header.order[entry].fixed,
                                                header.order[entry].count);
+        fprintf(stderr, "\tentry %u { %u, %u, %u }, 0 0 0 0 0 0 0 0 @all crypt()\n",
+                        entry,
+                        header.order[entry].length,
+                        header.order[entry].fixed,
+                        header.order[entry].count);
 
+        // Not the most efficient, we are going to make different entries
+        // go to different work units.  This means we'll have at least 3000
+        // work units (one per entry) and the early ones will be really
+        // short - but estimated seems off for tiny entries.
 
+        crypts = 0;
+        while (estimated) {
+            if (estimated  <  myunit ) 
+                break;
+                
+            estimated -= myunit;
+            crypts += myunit;
+            
 
-        if (estimated < 12345678)
-            continue;
-
-       crypts = estimated - 12345678;
 
         // Find the state after num crypt operations, so we can skip to an
         // arbitrary position.
@@ -270,19 +287,24 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fprintf(stderr, "\tentry %u { %u, %u, %u }, ~%llu crypt()\n",
+        fprintf(stderr, "\tentry %u { %u, %u, %u }, %u %u %u %u %u %u %u %u @%llu crypt()\n",
                         entry,
                         header.order[entry].length,
                         header.order[entry].fixed,
                         header.order[entry].count,
-                        estimated);
+                        john_numbers_state[0], john_numbers_state[1],
+                        john_numbers_state[2], john_numbers_state[3],
+                        john_numbers_state[4], john_numbers_state[5],
+                        john_numbers_state[6], john_numbers_state[7],
+                        crypts);
 
-        result = inc_key_loop(john_numbers_state,
-                              header.order[entry].length,
-                              header.order[entry].fixed,
-                              header.order[entry].count);
+//        result = inc_key_loop(john_numbers_state,
+//                              header.order[entry].length,
+//                              header.order[entry].fixed,
+//                              header.order[entry].count);
 
-        fprintf(stderr, "crypts executed %llu\n", result);
+//        fprintf(stderr, "crypts executed %llu\n", result);
+        }
     }
 
     return 0;
